@@ -56,6 +56,8 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     console.error(err);
     res.json({ texto: "Error leyendo archivo" });
   }
+  console.log("UPLOAD RECIBIDO");
+  console.log("FILE RECIBIDO:", Request.FILE);
 });
 
 
