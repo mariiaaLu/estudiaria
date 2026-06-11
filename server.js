@@ -38,8 +38,6 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     if (!req.file) {
       return res.json({ texto: "" });
     }
-  console.log("UPLOAD RECIBIDO");
-  console.log("FILE RECIBIDO:", Request.FILE);
 
     const buffer = fs.readFileSync(req.file.path);
 
@@ -48,10 +46,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     if (req.file.mimetype === "application/pdf") {
       const data = await pdfParse(buffer);
       texto = data.text;
-      console.log
-    }
-    console.log("TEXTO EXTRAIDO LENGTH:", texto.length);
-    else {
+    } else {
       texto = buffer.toString("utf8");
     }
 
@@ -61,7 +56,6 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     console.error(err);
     res.json({ texto: "Error leyendo archivo" });
   }
-
 });
 
 
