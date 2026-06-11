@@ -28,7 +28,9 @@ body{
   cursor:pointer;
 }
 
-.active{ background:#2563eb !important; }
+.active{
+  background:#2563eb !important;
+}
 
 .main{
   flex:1;
@@ -51,7 +53,8 @@ input[type="file"]{
   display:none;
 }
 
-select, button{
+select,
+button{
   padding:10px;
   margin:5px 0;
   border:none;
@@ -61,7 +64,9 @@ select, button{
   cursor:pointer;
 }
 
-button:hover{ background:#1d4ed8; }
+button:hover{
+  background:#1d4ed8;
+}
 
 .result{
   flex:1;
@@ -72,13 +77,56 @@ button:hover{ background:#1d4ed8; }
   overflow:auto;
 }
 
-strong{ color:#38bdf8; }
+strong{
+  color:#38bdf8;
+}
+
+.donar-box{
+  margin-top:15px;
+  background:#111827;
+  border:1px solid #2563eb;
+  border-radius:12px;
+  padding:15px;
+  text-align:center;
+}
+
+.donar-btn{
+  display:inline-block;
+  margin-top:10px;
+  background:#22c55e;
+  color:white;
+  text-decoration:none;
+  padding:12px 20px;
+  border-radius:8px;
+  font-weight:bold;
+}
+
+.donar-btn:hover{
+  background:#16a34a;
+}
+
+#popupDonacion{
+  display:none;
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  background:#111827;
+  border:2px solid #2563eb;
+  border-radius:12px;
+  padding:25px;
+  z-index:9999;
+  width:350px;
+  text-align:center;
+  box-shadow:0 0 20px rgba(0,0,0,.5);
+}
 </style>
 </head>
 
 <body>
 
 <div class="sidebar">
+
 <h2>📚 EstudiaIA</h2>
 
 <div class="option active" onclick="setCat(this,'Primaria')">📖 Primaria</div>
@@ -86,6 +134,7 @@ strong{ color:#38bdf8; }
 <div class="option" onclick="setCat(this,'Bachillerato')">📘 Bachillerato</div>
 <div class="option" onclick="setCat(this,'Universidad')">🏫 Universidad</div>
 <div class="option" onclick="setCat(this,'Oposiciones')">📑 Oposiciones</div>
+
 </div>
 
 <div class="main">
@@ -110,148 +159,59 @@ strong{ color:#38bdf8; }
 
 <h3>Texto manual</h3>
 
-<textarea id="userText" style="width:100%;height:120px;border-radius:10px;padding:10px;background:#0b1220;color:white;"></textarea>
+<textarea
+id="userText"
+style="width:100%;height:120px;border-radius:10px;padding:10px;background:#0b1220;color:white;">
+</textarea>
 
 <button onclick="uploadText()">🧠 Generar desde texto</button>
 
-<div class="result" id="resultado">Esperando...</div>
+<div class="result" id="resultado">
+Esperando...
+</div>
+
+<div class="donar-box">
+  <h3>☕ Apoya EstudiaIA</h3>
+
+  <p>
+  Esta herramienta es gratuita.
+  Si te ayuda a estudiar, puedes colaborar para mantener la IA y el servidor.
+  </p>
+
+  <a
+  class="donar-btn"
+  href="https://ko-fi.com/TUUSUARIO"
+  target="_blank">
+  ❤️ Invítame a un café
+  </a>
+</div>
 
 </div>
 
-<script>
+<div id="popupDonacion">
 
-const API_URL = "";
+<h2>🎓 ¿Te está ayudando EstudiaIA?</h2>
 
-let categoria = "ESO";
-let textoPDF = "";
+<p>
+Las donaciones ayudan a pagar la IA y mantener el proyecto gratuito.
+</p>
 
-function setCat(el, c){
-  categoria = c;
+<a
+class="donar-btn"
+href="https://ko-fi.com/TUUSUARIO"
+target="_blank">
+☕ Donar
+</a>
 
-  document.querySelectorAll(".option")
-    .forEach(e => e.classList.remove("active"));
+<br><br>
 
-  el.classList.add("active");
+<button onclick="cerrarPopup()">
+Seguir usando gratis
+</button>
 
-  document.getElementById("file").value = "";
-  document.getElementById("resultado").innerHTML = "Esperando PDF...";
-  document.getElementById("dropzone").innerHTML = "📄 Haz clic o arrastra un PDF aquí";
+</div>
 
-  textoPDF = "";
-}
-
-function format(text){
-  return text
-    .replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>")
-    .replace(/\n/g,"<br>");
-}
-
-async function upload(){
-
-  const file = document.getElementById("file").files[0];
-  if(!file) return alert("Selecciona un PDF");
-
-  const modo = document.getElementById("modo").value;
-  const resBox = document.getElementById("resultado");
-
-  try{
-
-    resBox.innerHTML = "📄 Leyendo PDF...";
-
-    const form = new FormData();
-    form.append("file", file);
-
-    const res = await fetch("/upload", {
-      method:"POST",
-      body:form
-    });
-
-    const data = await res.json();
-    textoPDF = data.texto;
-
-    if(!textoPDF){
-      resBox.innerHTML = "Error leyendo PDF";
-      return;
-    }
-
-    resBox.innerHTML = "🧠 Generando IA...";
-
-    const resIA = await fetch("/resumir", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify({
-        texto:textoPDF,
-        categoria,
-        modo
-      })
-    });
-
-    const dataIA = await resIA.json();
-
-    resBox.innerHTML = format(dataIA.resultado);
-
-  }catch(err){
-    console.error(err);
-    resBox.innerHTML = "❌ Error servidor";
-  }
-}
-
-async function uploadText(){
-
-  const text = document.getElementById("userText").value;
-
-  if(!text || text.trim().length < 5)
-    return alert("Escribe algo válido");
-
-  const modo = document.getElementById("modo").value;
-  const resBox = document.getElementById("resultado");
-
-  try{
-
-    resBox.innerHTML = "🧠 Generando IA...";
-
-    const resIA = await fetch("/resumir", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify({
-        texto:text,
-        categoria,
-        modo
-      })
-    });
-
-    const dataIA = await resIA.json();
-
-    resBox.innerHTML = format(dataIA.resultado);
-
-  }catch(err){
-    console.error(err);
-    resBox.innerHTML = "❌ Error servidor";
-  }
-}
-
-// FIX ERROR addEventListener
-window.addEventListener("DOMContentLoaded", () => {
-
-  const fileInput = document.getElementById("file");
-
-  if(fileInput){
-
-    fileInput.addEventListener("change",(e)=>{
-
-      const name = e.target.files[0]?.name;
-
-      if(name){
-        document.getElementById("dropzone").innerHTML = "📄 " + name;
-      }
-
-    });
-
-  }
-
-});
-
-</script>
+<script src="app.js"></script>
 
 </body>
 </html>
