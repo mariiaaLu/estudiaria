@@ -1,117 +1,191 @@
-console.log("SERVER INICIADO");
+const API_URL = "";
 
-import express from "express";
-import cors from "cors";
-import bodyParser from "body-parser";
-import multer from "multer";
-import fs from "fs";
-import OpenAI from "openai";
-import { createRequire } from "module";
+let categoria = "ESO";
+let textoPDF = "";
 
-const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse");
+let usos = parseInt(localStorage.getItem("estudiaia_usos")) || 0;
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+function registrarUso(){
 
-app.use(cors());
-app.use(bodyParser.json());
-app.use(express.static(".")); // sirve el frontend
+  usos++;
 
-const upload = multer({ dest: "uploads/" });
+  localStorage.setItem("estudiaia_usos", usos);
 
-// 🔑 IA
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: "https://openrouter.ai/api/v1"
-});
-
-// 🏠 FRONTEND
-app.get("/", (req, res) => {
-  res.sendFile(process.cwd() + "/index.html");
-});
-
-// 📄 PDF
-app.post("/upload", upload.single("file"), async (req, res) => {
-  try {
-
-    if (!req.file) {
-      return res.json({ texto: "" });
-    }
-
-    const buffer = fs.readFileSync(req.file.path);
-    const data = await pdfParse(buffer);
-
-    res.json({ texto: data.text });
-
-  } catch (err) {
-    console.error(err);
-    res.json({ texto: "Error leyendo PDF" });
+  if(usos % 5 === 0){
+    document.getElementById("popupDonacion").style.display = "block";
   }
-});
+}
 
-// 🧠 IA
-app.post("/resumir", async (req, res) => {
-  try {
+function cerrarPopup(){
+  document.getElementById("popupDonacion").style.display = "none";
+}
 
-    const { texto, categoria, modo } = req.body;
+function setCat(el,c){
 
-    if (!texto) {
-      return res.json({ resultado: "No hay texto" });
-    }
+  categoria = c;
 
-    let instruccion = "";
+  document
+    .querySelectorAll(".option")
+    .forEach(e => e.classList.remove("active"));
 
-    if (modo === "facil") {
-      instruccion = "Explícalo muy fácil para estudiantes.";
-    } else if (modo === "test") {
-      instruccion = "Crea un test de 5 preguntas con respuestas.";
-    } else if (modo === "ultra") {
-      instruccion = "Haz un resumen muy corto.";
-    } else {
-      instruccion = "Haz un resumen claro y estructurado.";
-    }
+  el.classList.add("active");
 
-    const response = await client.chat.completions.create({
-      model: "meta-llama/llama-3.1-8b-instruct",
-      temperature: 0.2,
-      messages: [
-        {
-          role: "system",
-          content: `
-Eres un profesor profesional.
+  document.getElementById("file").value = "";
 
-REGLAS ESTRICTAS:
-- NO inventes el nivel educativo
-- Usa SOLO el nivel indicado: ${categoria}
-- Si es "Primaria", no puedes usar ESO, Bachillerato ni Universidad
-- No menciones el nivel en la respuesta
-- No hagas introducciones
+  document.getElementById("resultado").innerHTML =
+    "Esperando PDF...";
 
-Nivel obligatorio: ${categoria}
-Modo: ${modo}
+  document.getElementById("dropzone").innerHTML =
+    "📄 Haz clic o arrastra un PDF aquí";
 
-Instrucción:
-${instruccion}
-          `
-        },
-        {
-          role: "user",
-          content: texto
-        }
-      ]
+  textoPDF = "";
+}
+
+function format(text){
+
+  return text
+    .replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>")
+    .replace(/\n/g,"<br>");
+}
+
+async function upload(){
+
+  const file = document.getElementById("file").files[0];
+
+  if(!file){
+    return alert("Selecciona un PDF");
+  }
+
+  const modo = document.getElementById("modo").value;
+
+  const resBox = document.getElementById("resultado");
+
+  try{
+
+    resBox.innerHTML = "📄 Leyendo PDF...";
+
+    const form = new FormData();
+
+    form.append("file", file);
+
+    const res = await fetch("/upload",{
+      method:"POST",
+      body:form
     });
 
-    res.json({
-      resultado: response.choices[0].message.content
+    const data = await res.json();
+
+    textoPDF = data.texto;
+
+    if(!textoPDF){
+
+      resBox.innerHTML = "Error leyendo PDF";
+
+      return;
+    }
+
+    resBox.innerHTML = "🧠 Generando IA...";
+
+    const resIA = await fetch("/resumir",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        texto:textoPDF,
+        categoria,
+        modo
+      })
     });
 
-  } catch (err) {
-    console.error(err);
-    res.json({ resultado: "Error IA" });
-  }
-});
+    const dataIA = await resIA.json();
 
-app.listen(PORT, () => {
-  console.log("Servidor en puerto " + PORT);
+    resBox.innerHTML = format(dataIA.resultado);
+
+    registrarUso();
+
+  }catch(err){
+
+    console.error(err);
+
+    resBox.innerHTML = "❌ Error servidor";
+  }
+}
+
+async function uploadText(){
+
+  const text =
+    document.getElementById("userText").value;
+
+  if(!text || text.trim().length < 5){
+    return alert("Escribe algo válido");
+  }
+
+  const modo =
+    document.getElementById("modo").value;
+
+  const resBox =
+    document.getElementById("resultado");
+
+  try{
+
+    resBox.innerHTML =
+      "🧠 Generando IA...";
+
+    const resIA =
+      await fetch("/resumir",{
+
+      method:"POST",
+
+      headers:{
+        "Content-Type":"application/json"
+      },
+
+      body:JSON.stringify({
+        texto:text,
+        categoria,
+        modo
+      })
+
+    });
+
+    const dataIA =
+      await resIA.json();
+
+    resBox.innerHTML =
+      format(dataIA.resultado);
+
+    registrarUso();
+
+  }catch(err){
+
+    console.error(err);
+
+    resBox.innerHTML =
+      "❌ Error servidor";
+  }
+}
+
+window.addEventListener("DOMContentLoaded",()=>{
+
+  const fileInput =
+    document.getElementById("file");
+
+  if(fileInput){
+
+    fileInput.addEventListener("change",(e)=>{
+
+      const name =
+        e.target.files[0]?.name;
+
+      if(name){
+
+        document.getElementById("dropzone")
+          .innerHTML = "📄 " + name;
+      }
+
+    });
+
+  }
+
 });
