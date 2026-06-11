@@ -14,6 +14,7 @@ const PORT = 3000;
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use(express.static("."));
 
 const upload = multer({ dest: "uploads/" });
 
